@@ -13,6 +13,11 @@ exports.StudentExamsController = void 0;
 const common_1 = require("@nestjs/common");
 const exam_summary_dto_1 = require("./dto/exam-summary.dto");
 const exams_service_1 = require("./exams.service");
+const user_entity_1 = require("../users/entities/user.entity");
+const common_2 = require("@nestjs/common");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../auth/roles.guard");
+const roles_decorator_1 = require("../auth/roles.decorator");
 let StudentExamsController = class StudentExamsController {
     exams;
     constructor(exams) {
@@ -31,6 +36,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], StudentExamsController.prototype, "list", null);
 exports.StudentExamsController = StudentExamsController = __decorate([
+    (0, common_2.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.ROLE.student),
     (0, common_1.Controller)('exams'),
     __metadata("design:paramtypes", [exams_service_1.ExamsService])
 ], StudentExamsController);

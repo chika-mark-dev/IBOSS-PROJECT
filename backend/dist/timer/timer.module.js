@@ -10,11 +10,13 @@ exports.TimerModule = void 0;
 const common_1 = require("@nestjs/common");
 const timer_service_1 = require("./timer.service");
 const timer_controller_1 = require("./timer.controller");
+const common_module_1 = require("../common/common.module");
 let TimerModule = class TimerModule {
 };
 exports.TimerModule = TimerModule;
 exports.TimerModule = TimerModule = __decorate([
     (0, common_1.Module)({
+        imports: [common_module_1.CommonModule],
         providers: [timer_service_1.TimerService],
         controllers: [timer_controller_1.TimerController],
         exports: [timer_service_1.TimerService],

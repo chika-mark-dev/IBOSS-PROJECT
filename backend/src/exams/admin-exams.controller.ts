@@ -13,7 +13,14 @@ import { CreateExamDto } from './dto/create-exam.dto';
 import { ExamDetailDto } from './dto/exam-detail.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
 import { ExamsService } from './exams.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { UseGuards } from '@nestjs/common';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { ROLE } from 'src/users/entities/user.entity';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(ROLE.admin)
 @Controller('exams')
 export class AdminExamsController {
   constructor(private readonly exams: ExamsService) {}

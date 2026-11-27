@@ -18,6 +18,11 @@ const create_exam_dto_1 = require("./dto/create-exam.dto");
 const exam_detail_dto_1 = require("./dto/exam-detail.dto");
 const update_exam_dto_1 = require("./dto/update-exam.dto");
 const exams_service_1 = require("./exams.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const common_2 = require("@nestjs/common");
+const roles_guard_1 = require("../auth/roles.guard");
+const roles_decorator_1 = require("../auth/roles.decorator");
+const user_entity_1 = require("../users/entities/user.entity");
 let AdminExamsController = class AdminExamsController {
     exams;
     constructor(exams) {
@@ -88,6 +93,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminExamsController.prototype, "remove", null);
 exports.AdminExamsController = AdminExamsController = __decorate([
+    (0, common_2.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.ROLE.admin),
     (0, common_1.Controller)('exams'),
     __metadata("design:paramtypes", [exams_service_1.ExamsService])
 ], AdminExamsController);

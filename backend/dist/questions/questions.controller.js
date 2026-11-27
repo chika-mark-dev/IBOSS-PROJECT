@@ -18,6 +18,10 @@ const admin_questions_dto_1 = require("./dto/admin-questions.dto");
 const create_question_dto_1 = require("./dto/create-question.dto");
 const update_question_dto_1 = require("./dto/update-question.dto");
 const questions_service_1 = require("./questions.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../auth/roles.guard");
+const roles_decorator_1 = require("../auth/roles.decorator");
+const user_entity_1 = require("../users/entities/user.entity");
 let QuestionsController = class QuestionsController {
     questions;
     constructor(questions) {
@@ -39,6 +43,8 @@ let QuestionsController = class QuestionsController {
 };
 exports.QuestionsController = QuestionsController;
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.ROLE.admin),
     (0, common_1.Post)('exams/:examId/questions'),
     __param(0, (0, common_1.Param)('examId', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Body)()),
@@ -47,6 +53,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "create", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.ROLE.admin),
     (0, common_1.Get)('exams/:examId/questions'),
     __param(0, (0, common_1.Param)('examId', common_1.ParseUUIDPipe)),
     __metadata("design:type", Function),
@@ -54,6 +62,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "list", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.ROLE.admin),
     (0, common_1.Patch)('questions/:id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Body)()),
@@ -62,6 +72,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], QuestionsController.prototype, "update", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.ROLE.admin),
     (0, common_1.Delete)('questions/:id'),
     (0, common_1.HttpCode)(204),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),

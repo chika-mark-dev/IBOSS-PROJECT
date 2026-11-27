@@ -9,6 +9,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GradingService = void 0;
 const common_1 = require("@nestjs/common");
 let GradingService = class GradingService {
+    grade(questions, answers, passMarkPercent) {
+        const total = questions.length;
+        if (total === 0) {
+            throw new Error('Cannot grade an exam with no questions');
+        }
+        const breakdown = questions.map((question) => {
+            const selectedIndex = answers.get(question.id) ?? null;
+            return {
+                questionId: question.id,
+                selectedIndex,
+                correctIndex: question.correctIndex,
+                isCorrect: selectedIndex === question.correctIndex,
+            };
+        });
+        const score = breakdown.filter((item) => item.isCorrect).length;
+        const percentage = Math.round((score * 10000) / total) / 100;
+        const passed = score * 100 >= passMarkPercent * total;
+        return { score, total, percentage, passed, breakdown };
+    }
 };
 exports.GradingService = GradingService;
 exports.GradingService = GradingService = __decorate([

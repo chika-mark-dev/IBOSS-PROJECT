@@ -16,7 +16,8 @@ exports.GradingModule = GradingModule;
 exports.GradingModule = GradingModule = __decorate([
     (0, common_1.Module)({
         providers: [grading_service_1.GradingService],
-        controllers: [grading_controller_1.GradingController]
+        controllers: [grading_controller_1.GradingController],
+        exports: [grading_service_1.GradingService],
     })
 ], GradingModule);
 //# sourceMappingURL=grading.module.js.map

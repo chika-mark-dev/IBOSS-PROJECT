@@ -13,12 +13,13 @@ const questions_controller_1 = require("./questions.controller");
 const typeorm_1 = require("@nestjs/typeorm");
 const question_entity_1 = require("./entities/question.entity");
 const exams_module_1 = require("../exams/exams.module");
+const auth_module_1 = require("../auth/auth.module");
 let QuestionsModule = class QuestionsModule {
 };
 exports.QuestionsModule = QuestionsModule;
 exports.QuestionsModule = QuestionsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([question_entity_1.Question]), exams_module_1.ExamsModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([question_entity_1.Question]), exams_module_1.ExamsModule, auth_module_1.AuthModule],
         providers: [questions_service_1.QuestionsService],
         controllers: [questions_controller_1.QuestionsController],
         exports: [questions_service_1.QuestionsService],
