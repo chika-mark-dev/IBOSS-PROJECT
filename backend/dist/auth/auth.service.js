@@ -56,17 +56,22 @@ let AuthService = class AuthService {
     }
     async register(userEnteredData) {
         const hashedPassword = await this.bycryptHash(userEnteredData.password);
-        userEnteredData.password = hashedPassword;
-        const registeredUser = this.userService.create(userEnteredData);
-        return registeredUser;
+        const registeredUser = await this.userService.create({
+            ...userEnteredData,
+            password: hashedPassword,
+        });
+        return this.tokenService.issue(registeredUser);
     }
     async login(userData) {
-        const user = await this.userService.findByEmail(userData.email);
-        const ok = this.bycryptComparePassword(userData.password, user.password);
+        const user = await this.userService.findByEmailWithPassword(userData.email);
+        if (!user) {
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        const ok = await this.bycryptComparePassword(userData.password, user.password);
         if (!ok) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
-        return this.tokenService.issue;
+        return this.tokenService.issue(user);
     }
     async refresh(rawToken) {
         return this.tokenService.rotate(rawToken);

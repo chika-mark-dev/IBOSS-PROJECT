@@ -38,11 +38,20 @@ let UsersService = class UsersService {
         return await this.userRepository.save(createdUser);
     }
     async findByEmail(email) {
-        const user = await this.userRepository.findOne({ where: { email: email } });
+        const user = await this.userRepository.findOne({
+            where: { email: email.trim().toLowerCase() },
+        });
         if (!user) {
             throw new common_1.NotFoundException('Invalid credentials');
         }
         return user;
+    }
+    async findByEmailWithPassword(email) {
+        return this.userRepository
+            .createQueryBuilder('u')
+            .addSelect('u.password')
+            .where('u.email = :email', { email })
+            .getOne();
     }
     async findById(userId) {
         const user = await this.userRepository.findOne({

@@ -45,25 +45,27 @@ export class TokensService {
     const payload = await this.verifyRefresh(rawToken);
     const token_hash = this.hash(rawToken);
 
+    const old = await this.refreshTokens.findOne({ where: { token_hash } });
+
+    if (!old) {
+      throw new UnauthorizedException('Refresh token is no longer valid');
+    }
+
+    if (old.expires_at <= this.clock.now()) {
+      await this.refreshTokens.delete({ id: old.id });
+      throw new UnauthorizedException('Refresh token has expired');
+    }
+
+    const user = await this.users.findById(payload.sub);
+
+    if (!user) {
+      await this.refreshTokens.delete({ id: old.id });
+      throw new UnauthorizedException('User no longer exists');
+    }
+
     return this.refreshTokens.manager.transaction(async (em) => {
-      const old = await em.findOne(RefreshToken, { where: { token_hash } });
-
-      if (!old) {
-        throw new UnauthorizedException('Refresh token is no longer valid');
-      }
-
-      if (old.expires_at <= this.clock.now()) {
-        await em.delete(RefreshToken, { id: old.id });
-        throw new UnauthorizedException('Refresh token has expired');
-      }
-
-      const user = await this.users.findById(payload.sub);
-      if (!user) {
-        await em.delete(RefreshToken, { id: old.id });
-        throw new UnauthorizedException('User no longer exists');
-      }
-
       const deleted = await em.delete(RefreshToken, { id: old.id });
+
       if (!deleted.affected) {
         throw new UnauthorizedException('Refresh token was already rotated');
       }
@@ -113,12 +115,13 @@ export class TokensService {
     ]);
 
     const refreshDecoded = this.jwt.decode<DecodedToken>(refresh_token);
+
     if (!refreshDecoded?.exp) {
       throw new InternalServerErrorException('Signed refresh token has no exp');
     }
-    const expires_at = new Date(refreshDecoded.exp * 1000);
 
-    const token_hash = createHash('sha256').update(refresh_token).digest('hex');
+    const expires_at = new Date(refreshDecoded.exp * 1000);
+    const token_hash = this.hash(refresh_token);
 
     await em.save(RefreshToken, {
       user_id: user.user_id,

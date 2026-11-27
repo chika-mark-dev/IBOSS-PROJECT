@@ -30,12 +30,21 @@ export class UsersService {
     return await this.userRepository.save(createdUser);
   }
   async findByEmail(email: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { email: email } });
+    const user = await this.userRepository.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
     if (!user) {
       throw new NotFoundException('Invalid credentials');
     }
     return user;
   }
+  async findByEmailWithPassword(email: string): Promise<User | null> {
+  return this.userRepository
+    .createQueryBuilder('u')
+    .addSelect('u.password')
+    .where('u.email = :email', { email })
+    .getOne();
+}
   async findById(userId: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { user_id: userId },

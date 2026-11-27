@@ -41,20 +41,20 @@ let TokensService = class TokensService {
     async rotate(rawToken) {
         const payload = await this.verifyRefresh(rawToken);
         const token_hash = this.hash(rawToken);
+        const old = await this.refreshTokens.findOne({ where: { token_hash } });
+        if (!old) {
+            throw new common_1.UnauthorizedException('Refresh token is no longer valid');
+        }
+        if (old.expires_at <= this.clock.now()) {
+            await this.refreshTokens.delete({ id: old.id });
+            throw new common_1.UnauthorizedException('Refresh token has expired');
+        }
+        const user = await this.users.findById(payload.sub);
+        if (!user) {
+            await this.refreshTokens.delete({ id: old.id });
+            throw new common_1.UnauthorizedException('User no longer exists');
+        }
         return this.refreshTokens.manager.transaction(async (em) => {
-            const old = await em.findOne(refresh_token_entity_1.RefreshToken, { where: { token_hash } });
-            if (!old) {
-                throw new common_1.UnauthorizedException('Refresh token is no longer valid');
-            }
-            if (old.expires_at <= this.clock.now()) {
-                await em.delete(refresh_token_entity_1.RefreshToken, { id: old.id });
-                throw new common_1.UnauthorizedException('Refresh token has expired');
-            }
-            const user = await this.users.findById(payload.sub);
-            if (!user) {
-                await em.delete(refresh_token_entity_1.RefreshToken, { id: old.id });
-                throw new common_1.UnauthorizedException('User no longer exists');
-            }
             const deleted = await em.delete(refresh_token_entity_1.RefreshToken, { id: old.id });
             if (!deleted.affected) {
                 throw new common_1.UnauthorizedException('Refresh token was already rotated');
@@ -95,7 +95,7 @@ let TokensService = class TokensService {
             throw new common_1.InternalServerErrorException('Signed refresh token has no exp');
         }
         const expires_at = new Date(refreshDecoded.exp * 1000);
-        const token_hash = (0, crypto_1.createHash)('sha256').update(refresh_token).digest('hex');
+        const token_hash = this.hash(refresh_token);
         await em.save(refresh_token_entity_1.RefreshToken, {
             user_id: user.user_id,
             jti: refreshPayload.jti,

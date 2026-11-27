@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { RegisterDto } from 'src/users/dto/create-user.dto';
 import { LoginDto } from 'src/users/dto/user-login.dto';
@@ -15,18 +19,26 @@ export class AuthService {
 
   async register(userEnteredData: RegisterDto) {
     const hashedPassword = await this.bycryptHash(userEnteredData.password);
-    userEnteredData.password = hashedPassword;
-    const registeredUser = this.userService.create(userEnteredData);
-    return registeredUser;
+    const registeredUser = await this.userService.create({
+      ...userEnteredData,
+      password: hashedPassword,
+    });
+    return this.tokenService.issue(registeredUser);
   }
 
   async login(userData: LoginDto) {
-    const user = await this.userService.findByEmail(userData.email);
-    const ok = this.bycryptComparePassword(userData.password, user.password);
+    const user = await this.userService.findByEmailWithPassword(userData.email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const ok = await this.bycryptComparePassword(
+      userData.password,
+      user.password,
+    );
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return this.tokenService.issue;
+    return this.tokenService.issue(user);
   }
   async refresh(rawToken: string) {
     return this.tokenService.rotate(rawToken);

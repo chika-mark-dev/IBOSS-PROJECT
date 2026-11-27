@@ -5,13 +5,70 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExamsService = void 0;
 const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const exams_entity_1 = require("./entities/exams.entity");
 let ExamsService = class ExamsService {
+    exams;
+    constructor(exams) {
+        this.exams = exams;
+    }
+    create(dto) {
+        return this.exams.save(this.exams.create(dto));
+    }
+    findReleased() {
+        return this.exams.find({
+            where: { isReleased: true },
+            order: { createdAt: 'DESC' },
+        });
+    }
+    async findById(id) {
+        const exam = await this.exams.findOne({ where: { id } });
+        if (!exam)
+            throw new common_1.NotFoundException('Exam not found');
+        return exam;
+    }
+    async update(id, dto) {
+        const exam = await this.findById(id);
+        this.assertEditable(exam);
+        Object.assign(exam, dto);
+        return this.exams.save(exam);
+    }
+    async remove(id) {
+        const exam = await this.findById(id);
+        this.assertEditable(exam);
+        await this.exams.remove(exam);
+    }
+    async release(id) {
+        const exam = await this.findById(id);
+        exam.isReleased = true;
+        return this.exams.save(exam);
+    }
+    async lock(id) {
+        await this.exams.update({ id }, { isLocked: true });
+    }
+    findAll() {
+        return this.exams.find({ order: { createdAt: 'DESC' } });
+    }
+    assertEditable(exam) {
+        if (exam.isLocked) {
+            throw new common_1.ConflictException('Exam has started and can no longer be changed');
+        }
+    }
 };
 exports.ExamsService = ExamsService;
 exports.ExamsService = ExamsService = __decorate([
-    (0, common_1.Injectable)()
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(exams_entity_1.Exam)),
+    __metadata("design:paramtypes", [typeorm_2.Repository])
 ], ExamsService);
 //# sourceMappingURL=exams.service.js.map
