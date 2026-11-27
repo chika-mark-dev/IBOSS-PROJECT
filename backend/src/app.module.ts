@@ -10,7 +10,7 @@ import { GradingModule } from './grading/grading.module';
 import { TimerModule } from './timer/timer.module';
 import { CommonModule } from './common/common.module';
 import { TokensModule } from './tokens/tokens.module';
-
+import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -26,6 +26,7 @@ import { TokensModule } from './tokens/tokens.module';
         ssl: true,
         autoLoadEntities: true,
         synchronize: config.get<string>('DB_SYNC') === 'true',
+        namingStrategy: new SnakeNamingStrategy(),
         retryAttempts: 5,
         retryDelay: 3000,
         extra: { connectionTimeoutMillis: 15000 },

@@ -7,6 +7,7 @@ export declare class ExamsService {
     constructor(exams: Repository<Exam>);
     create(dto: CreateExamDto): Promise<Exam>;
     findReleased(): Promise<Exam[]>;
+    findEditableById(id: string): Promise<Exam>;
     findById(id: string): Promise<Exam>;
     update(id: string, dto: UpdateExamDto): Promise<Exam>;
     remove(id: string): Promise<void>;

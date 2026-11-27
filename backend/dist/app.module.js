@@ -19,6 +19,7 @@ const grading_module_1 = require("./grading/grading.module");
 const timer_module_1 = require("./timer/timer.module");
 const common_module_1 = require("./common/common.module");
 const tokens_module_1 = require("./tokens/tokens.module");
+const typeorm_naming_strategies_1 = require("typeorm-naming-strategies");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -36,6 +37,7 @@ exports.AppModule = AppModule = __decorate([
                     ssl: true,
                     autoLoadEntities: true,
                     synchronize: config.get('DB_SYNC') === 'true',
+                    namingStrategy: new typeorm_naming_strategies_1.SnakeNamingStrategy(),
                     retryAttempts: 5,
                     retryDelay: 3000,
                     extra: { connectionTimeoutMillis: 15000 },

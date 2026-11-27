@@ -4,6 +4,7 @@ import { TimerController } from './timer.controller';
 
 @Module({
   providers: [TimerService],
-  controllers: [TimerController]
+  controllers: [TimerController],
+  exports: [TimerService],
 })
 export class TimerModule {}

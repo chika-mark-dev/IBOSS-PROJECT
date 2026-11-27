@@ -25,6 +25,11 @@ export class ExamsService {
       order: { createdAt: 'DESC' },
     });
   }
+  async findEditableById(id: string): Promise<Exam> {
+    const exam = await this.findById(id);
+    this.assertEditable(exam);
+    return exam;
+  }
 
   async findById(id: string): Promise<Exam> {
     const exam = await this.exams.findOne({ where: { id } });

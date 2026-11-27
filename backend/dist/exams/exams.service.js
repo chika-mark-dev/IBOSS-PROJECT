@@ -31,6 +31,11 @@ let ExamsService = class ExamsService {
             order: { createdAt: 'DESC' },
         });
     }
+    async findEditableById(id) {
+        const exam = await this.findById(id);
+        this.assertEditable(exam);
+        return exam;
+    }
     async findById(id) {
         const exam = await this.exams.findOne({ where: { id } });
         if (!exam)

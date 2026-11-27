@@ -9,6 +9,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CommonService = void 0;
 const common_1 = require("@nestjs/common");
 let CommonService = class CommonService {
+    now() {
+        return new Date();
+    }
 };
 exports.CommonService = CommonService;
 exports.CommonService = CommonService = __decorate([

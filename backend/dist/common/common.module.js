@@ -14,7 +14,8 @@ let CommonModule = class CommonModule {
 exports.CommonModule = CommonModule;
 exports.CommonModule = CommonModule = __decorate([
     (0, common_1.Module)({
-        providers: [common_service_1.CommonService]
+        providers: [common_service_1.CommonService],
+        exports: [common_service_1.CommonService],
     })
 ], CommonModule);
 //# sourceMappingURL=common.module.js.map
