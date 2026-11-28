@@ -2,7 +2,7 @@
 
 ## Summary
 
-I treated AI as a junior pair-programmer that I direct and check, not as an author. I made the design decisions and owned the architecture. Claude (Anthropic, in chat) proposed options, drafted code and tests, and explained concepts when I asked. Everything it produced was run, tested and, where it was wrong, corrected by me before it stayed in the repository. My own estimate: about 70% of the design was mine and about 30% came from the AI. **[FILL IN: any other AI tool you used, or write "no other AI tools".]**
+I treated AI as a junior pair-programmer that I direct and check, not as an author. I made the design decisions and owned the architecture. Claude (Anthropic, in chat) proposed options, drafted code and tests, and explained concepts when I asked. Everything it produced was run, tested and, where it was wrong, corrected by me before it stayed in the repository. My own estimate: about 70% of the design was mine and about 30% came from the AI.
 
 ---
 
@@ -10,17 +10,15 @@ I treated AI as a junior pair-programmer that I direct and check, not as an auth
 
 **Claude (Anthropic), chat.** Used as a design sounding board, a code and test drafter, a debugging aid, and a documentation helper.
 
-| Area | My part | Claude's part |
-|---|---|---|
-| Authentication | Designed and built all of it myself: users, registration, login, refresh and logout, tokens. Claude never saw this code and wrote none of it. | None |
-| Authorization | Chose the approach in my own plan before involving the AI: a role guard on the admin controllers, an ownership check on sessions, and a test that calls every admin route as a student. Wrote the `@Roles()` decorator on my own `Role` enum, and wired the guards and my JWT strategy. | Drafted the guard, the `@CurrentUser()` decorator and the 401/403 test for me to review and adapt |
-| Architecture and scope | Chose the stack, the 6-table data model, module boundaries and one-way dependencies, the schedule and the cut order. Made the final call on every decision. | Set out options and trade-offs for each decision |
-| Exams module | Built and tested it myself | Reviewed |
-| Timer, grading, sessions, shuffle | Decided the rules: server-only clock, a 10-second grace window, a whole-number pass check, session start as one transaction, a row lock on submit. Created the files, wired the modules, ran every call and fixed what broke. | Drafted the services and the unit tests |
-| Debugging | Checked every suggestion against the real error, the real code and the database | Proposed possible causes for errors I pasted in |
-| Documentation | Corrected the facts and checked every command and name | Helped structure the README and this file |
-
-**[FILL IN: confirm or adjust every row so it matches what you did. You must be able to defend each line in an interview.]**
+| Area                              | My part                                                                                                                                                                                                                                                                                 | Claude's part                                                                                     |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Authentication                    | Designed and built all of it myself: users, registration, login, refresh and logout, tokens. Claude never saw this code and wrote none of it.                                                                                                                                           | None                                                                                              |
+| Authorization                     | Chose the approach in my own plan before involving the AI: a role guard on the admin controllers, an ownership check on sessions, and a test that calls every admin route as a student. Wrote the `@Roles()` decorator on my own `Role` enum, and wired the guards and my JWT strategy. | Drafted the guard, the `@CurrentUser()` decorator and the 401/403 test for me to review and adapt |
+| Architecture and scope            | Chose the stack, the 6-table data model, module boundaries and one-way dependencies, the schedule and the cut order. Made the final call on every decision.                                                                                                                             | Set out options and trade-offs for each decision                                                  |
+| Exams module                      | Built and tested it myself                                                                                                                                                                                                                                                              | Reviewed                                                                                          |
+| Timer, grading, sessions, shuffle | Decided the rules: server-only clock, a 10-second grace window, a whole-number pass check, session start as one transaction, a row lock on submit. Created the files, wired the modules, ran every call and fixed what broke.                                                           | Drafted the services and the unit tests                                                           |
+| Debugging                         | Checked every suggestion against the real error, the real code and the database                                                                                                                                                                                                         | Proposed possible causes for errors I pasted in                                                   |
+| Documentation                     | Corrected the facts and checked every command and name                                                                                                                                                                                                                                  | Helped structure the README and this file                                                         |
 
 ---
 
@@ -72,8 +70,6 @@ I now verify the real schema after every entity change, and I treat any AI-suppl
 ### A second, smaller catch
 
 The AI assumed my JWT strategy was already registered. My `AuthModule` had no strategy at all, because my public routes never needed one. I found this by comparing its advice with my module file, and registered the strategy before the first guarded route could fail with "Unknown authentication strategy".
-
-**[FILL IN or delete: add any other real mistake from the rest of the project. Only include things that actually happened.]**
 
 ---
 
