@@ -31,6 +31,14 @@ let ExamsService = class ExamsService {
             order: { createdAt: 'DESC' },
         });
     }
+    async findReleasedOrFail(id, manager) {
+        const exam = manager
+            ? await manager.findOne(exams_entity_1.Exam, { where: { id, isReleased: true } })
+            : await this.exams.findOne({ where: { id, isReleased: true } });
+        if (!exam)
+            throw new common_1.NotFoundException('Exam not found');
+        return exam;
+    }
     async findEditableById(id) {
         const exam = await this.findById(id);
         this.assertEditable(exam);
@@ -58,7 +66,11 @@ let ExamsService = class ExamsService {
         exam.isReleased = true;
         return this.exams.save(exam);
     }
-    async lock(id) {
+    async lock(id, manager) {
+        if (manager) {
+            await manager.update(exams_entity_1.Exam, { id }, { isLocked: true });
+            return;
+        }
         await this.exams.update({ id }, { isLocked: true });
     }
     findAll() {

@@ -15,9 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuestionsService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
 const exams_service_1 = require("../exams/exams.service");
 const question_entity_1 = require("./entities/question.entity");
+const typeorm_2 = require("typeorm");
 let QuestionsService = class QuestionsService {
     questions;
     exams;
@@ -38,6 +38,21 @@ let QuestionsService = class QuestionsService {
             order: { position: 'ASC' },
         });
     }
+    async findAllForExam(examId, manager) {
+        return manager.find(question_entity_1.Question, { where: { examId } });
+    }
+    async findForStudent(questionIds) {
+        if (questionIds.length === 0)
+            return [];
+        const rows = await this.questions.find({ where: { id: (0, typeorm_2.In)(questionIds) } });
+        const byId = new Map(rows.map((question) => [question.id, question]));
+        return questionIds.flatMap((id) => {
+            const question = byId.get(id);
+            return question
+                ? [{ id: question.id, text: question.text, options: question.options }]
+                : [];
+        });
+    }
     async update(id, dto) {
         const question = await this.findById(id);
         await this.exams.findEditableById(question.examId);
@@ -49,6 +64,13 @@ let QuestionsService = class QuestionsService {
         const question = await this.findById(id);
         await this.exams.findEditableById(question.examId);
         await this.questions.remove(question);
+    }
+    async findManyByIds(ids, manager) {
+        if (ids.length === 0)
+            return [];
+        return manager
+            ? manager.find(question_entity_1.Question, { where: { id: (0, typeorm_2.In)(ids) } })
+            : this.questions.find({ where: { id: (0, typeorm_2.In)(ids) } });
     }
     async findById(id) {
         const question = await this.questions.findOne({ where: { id } });

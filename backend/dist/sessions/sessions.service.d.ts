@@ -1,2 +1,33 @@
+import { DataSource, Repository } from 'typeorm';
+import { CommonService } from '../common/common.service';
+import { ExamsService } from '../exams/exams.service';
+import { GradingService } from '../grading/grading.service';
+import { QuestionsService } from '../questions/questions.service';
+import { TimerService } from '../timer/timer.service';
+import { ResultResponseDto } from './dto/result-response.dto';
+import { SaveAnswerResponseDto } from './dto/save-answer-response.dto';
+import { SaveAnswerDto } from './dto/save-answer.dto';
+import { SessionResponseDto } from './dto/session-response.dto';
+import { Answer } from './entities/answer.entity';
+import { ExamSession } from './entities/exam-session.entity';
 export declare class SessionsService {
+    private readonly sessions;
+    private readonly answers;
+    private readonly dataSource;
+    private readonly clock;
+    private readonly timer;
+    private readonly grading;
+    private readonly exams;
+    private readonly questions;
+    constructor(sessions: Repository<ExamSession>, answers: Repository<Answer>, dataSource: DataSource, clock: CommonService, timer: TimerService, grading: GradingService, exams: ExamsService, questions: QuestionsService);
+    start(userId: string, examId: string): Promise<SessionResponseDto>;
+    getForUser(sessionId: string, userId: string): Promise<SessionResponseDto>;
+    saveAnswer(sessionId: string, userId: string, questionId: string, dto: SaveAnswerDto): Promise<SaveAnswerResponseDto>;
+    submit(sessionId: string, userId: string): Promise<ResultResponseDto>;
+    getResult(sessionId: string, userId: string): Promise<ResultResponseDto>;
+    private findOwned;
+    private closeIfOverdue;
+    private computeResult;
+    private toResponse;
+    private isUniqueViolation;
 }

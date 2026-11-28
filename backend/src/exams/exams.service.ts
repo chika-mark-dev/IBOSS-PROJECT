@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
 import { Exam } from './entities/exams.entity';
@@ -25,6 +25,14 @@ export class ExamsService {
       order: { createdAt: 'DESC' },
     });
   }
+  async findReleasedOrFail(id: string, manager?: EntityManager): Promise<Exam> {
+    const exam = manager
+      ? await manager.findOne(Exam, { where: { id, isReleased: true } })
+      : await this.exams.findOne({ where: { id, isReleased: true } });
+    if (!exam) throw new NotFoundException('Exam not found');
+    return exam;
+  }
+
   async findEditableById(id: string): Promise<Exam> {
     const exam = await this.findById(id);
     this.assertEditable(exam);
@@ -56,9 +64,14 @@ export class ExamsService {
     return this.exams.save(exam);
   }
 
-  async lock(id: string): Promise<void> {
+  async lock(id: string, manager?: EntityManager): Promise<void> {
+    if (manager) {
+      await manager.update(Exam, { id }, { isLocked: true });
+      return;
+    }
     await this.exams.update({ id }, { isLocked: true });
   }
+
   findAll(): Promise<Exam[]> {
     return this.exams.find({ order: { createdAt: 'DESC' } });
   }
