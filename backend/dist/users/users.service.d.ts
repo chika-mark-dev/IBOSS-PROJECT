@@ -8,4 +8,5 @@ export declare class UsersService {
     findByEmail(email: string): Promise<User>;
     findByEmailWithPassword(email: string): Promise<User | null>;
     findById(userId: string): Promise<User>;
+    findManyByIds(ids: string[]): Promise<User[]>;
 }

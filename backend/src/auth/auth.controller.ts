@@ -18,7 +18,7 @@ export class AuthController {
     return result;
   }
 
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard)
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body('refresh_token') token: string) {

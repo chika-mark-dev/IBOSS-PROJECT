@@ -54,7 +54,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
-    (0, common_2.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)('refresh'),
     (0, common_1.HttpCode)(200),
     __param(0, (0, common_1.Body)('refresh_token')),

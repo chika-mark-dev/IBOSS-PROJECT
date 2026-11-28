@@ -62,6 +62,11 @@ let UsersService = class UsersService {
         }
         return user;
     }
+    findManyByIds(ids) {
+        if (ids.length === 0)
+            return Promise.resolve([]);
+        return this.userRepository.find({ where: { user_id: (0, typeorm_2.In)(ids) } });
+    }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([

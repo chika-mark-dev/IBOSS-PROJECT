@@ -1,0 +1,444 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { CommonService } from '../common/common.service';
+import { ExamsService } from '../exams/exams.service';
+import { GradingQuestion, GradingService } from '../grading/grading.service';
+import { QuestionsService } from '../questions/questions.service';
+import { TimerService } from '../timer/timer.service';
+import { UsersService } from '../users/users.service';
+import {
+  AdminResultDetail,
+  AdminResultListItem,
+} from './dto/admin-results.types';
+import { ResultResponseDto } from './dto/result-response.dto';
+import { SaveAnswerResponseDto } from './dto/save-answer-response.dto';
+import { SaveAnswerDto } from './dto/save-answer.dto';
+import { SessionResponseDto } from './dto/session-response.dto';
+import { Answer } from './entities/answer.entity';
+import {
+  EXAM_SESSION_STATUS,
+  ExamSession,
+} from './entities/exam-session.entity';
+import { shuffle } from './shuffle.utils';
+
+const UNIQUE_VIOLATION = '23505';
+
+@Injectable()
+export class SessionsService {
+  constructor(
+    @InjectRepository(ExamSession)
+    private readonly sessions: Repository<ExamSession>,
+    @InjectRepository(Answer)
+    private readonly answers: Repository<Answer>,
+    private readonly dataSource: DataSource,
+    private readonly clock: CommonService,
+    private readonly timer: TimerService,
+    private readonly grading: GradingService,
+    private readonly exams: ExamsService,
+    private readonly questions: QuestionsService,
+    private readonly users: UsersService,
+  ) {}
+
+  async start(userId: string, examId: string): Promise<SessionResponseDto> {
+    const existing = await this.sessions.findOne({ where: { userId, examId } });
+    if (existing) return this.toResponse(await this.closeIfOverdue(existing));
+
+    try {
+      const created = await this.dataSource.transaction(async (manager) => {
+        const exam = await this.exams.findReleasedOrFail(examId, manager);
+
+        const examQuestions = await this.questions.findAllForExam(
+          examId,
+          manager,
+        );
+        if (examQuestions.length === 0) {
+          throw new BadRequestException('Exam has no questions');
+        }
+
+        await this.exams.lock(examId, manager);
+
+        return manager.save(
+          manager.create(ExamSession, {
+            userId,
+            examId,
+            status: EXAM_SESSION_STATUS.inProgress,
+            startedAt: this.clock.now(),
+            expiresAt: this.timer.computeExpiry(exam.durationMinutes),
+            questionOrder: shuffle(examQuestions.map((q) => q.id)),
+            totalQuestions: examQuestions.length,
+          }),
+        );
+      });
+      return this.toResponse(created);
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        const winner = await this.sessions.findOne({
+          where: { userId, examId },
+        });
+        if (winner) return this.toResponse(winner);
+      }
+      throw error;
+    }
+  }
+
+  async getForUser(
+    sessionId: string,
+    userId: string,
+  ): Promise<SessionResponseDto> {
+    return this.toResponse(await this.findOwned(sessionId, userId));
+  }
+
+  async saveAnswer(
+    sessionId: string,
+    userId: string,
+    questionId: string,
+    dto: SaveAnswerDto,
+  ): Promise<SaveAnswerResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      const session = await manager.findOne(ExamSession, {
+        where: { id: sessionId, userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!session) throw new NotFoundException('Session not found');
+
+      if (session.status !== EXAM_SESSION_STATUS.inProgress) {
+        throw new ConflictException('Session is already closed');
+      }
+      if (session.expiresAt && this.timer.isExpired(session.expiresAt)) {
+        throw new ConflictException('Time is up');
+      }
+      if (!session.questionOrder.includes(questionId)) {
+        throw new NotFoundException('Question not found in this session');
+      }
+
+      const [question] = await this.questions.findManyByIds(
+        [questionId],
+        manager,
+      );
+      if (!question) throw new NotFoundException('Question not found');
+      if (dto.selectedIndex >= question.options.length) {
+        throw new BadRequestException(
+          'selectedIndex must point to one of the options',
+        );
+      }
+
+      await manager.upsert(
+        Answer,
+        {
+          sessionId,
+          questionId,
+          selectedIndex: dto.selectedIndex,
+          answeredAt: this.clock.now(),
+        },
+        ['sessionId', 'questionId'],
+      );
+
+      return {
+        questionId,
+        selectedIndex: dto.selectedIndex,
+        serverTime: this.clock.now(),
+        remainingSeconds: session.expiresAt
+          ? this.timer.remainingSeconds(session.expiresAt)
+          : 0,
+      };
+    });
+  }
+
+  async submit(sessionId: string, userId: string): Promise<ResultResponseDto> {
+    const session = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(ExamSession, {
+        where: { id: sessionId, userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new NotFoundException('Session not found');
+
+      if (locked.status !== EXAM_SESSION_STATUS.inProgress) return locked;
+      if (!locked.expiresAt) {
+        throw new ConflictException('Session has no expiry');
+      }
+
+      locked.status =
+        this.timer.classifySubmit(locked.expiresAt) === 'submitted'
+          ? EXAM_SESSION_STATUS.submitted
+          : EXAM_SESSION_STATUS.expired;
+      locked.submittedAt = this.clock.now();
+      return manager.save(locked);
+    });
+    return this.computeResult(session);
+  }
+
+  async getResult(
+    sessionId: string,
+    userId: string,
+  ): Promise<ResultResponseDto> {
+    const session = await this.findOwned(sessionId, userId);
+    if (session.status === EXAM_SESSION_STATUS.inProgress) {
+      throw new ConflictException('Session is still in progress');
+    }
+    return this.computeResult(session);
+  }
+
+  // Admin: every student's session for one exam
+  async listResultsForExam(examId: string): Promise<AdminResultListItem[]> {
+    // ASSUMED: findById throws NotFoundException when the exam does not exist
+    const exam = await this.exams.findById(examId);
+
+    const rows = await this.sessions.find({
+      where: { examId },
+      order: { startedAt: 'DESC' },
+    });
+    if (rows.length === 0) return [];
+
+    // Close abandoned sessions with the same rule the student routes use
+    const sessions = await Promise.all(rows.map((r) => this.closeIfOverdue(r)));
+
+    const userRows = await this.users.findManyByIds([
+      ...new Set(sessions.map((s) => s.userId)),
+    ]);
+    const userById = new Map(userRows.map((u) => [u.id, u]));
+
+    // One question set for the whole exam, one answers query for all closed sessions
+    const questionRows = await this.questions.findAllForExam(examId);
+    const questionById = new Map(questionRows.map((q) => [q.id, q]));
+
+    const closedIds = sessions
+      .filter((s) => s.status !== EXAM_SESSION_STATUS.inProgress)
+      .map((s) => s.id);
+    const answerRows =
+      closedIds.length > 0
+        ? await this.answers.find({ where: { sessionId: In(closedIds) } })
+        : [];
+
+    const selectedBySession = new Map<string, Map<string, number>>();
+    for (const row of answerRows) {
+      let selected = selectedBySession.get(row.sessionId);
+      if (!selected) {
+        selected = new Map();
+        selectedBySession.set(row.sessionId, selected);
+      }
+      selected.set(row.questionId, row.selectedIndex);
+    }
+
+    return sessions.map((session) => {
+      const user = userById.get(session.userId);
+      // ASSUMED: the user entity has "name" and "email"
+      const student = {
+        id: session.userId,
+        name: user?.name ?? 'Unknown',
+        email: user?.email ?? '',
+      };
+
+      if (session.status === EXAM_SESSION_STATUS.inProgress) {
+        return {
+          sessionId: session.id,
+          student,
+          status: session.status,
+          submittedAt: session.submittedAt,
+          score: null,
+          total: session.totalQuestions,
+          percentage: null,
+          passed: null,
+        };
+      }
+
+      const result = this.gradeSession(
+        session,
+        questionById,
+        selectedBySession.get(session.id) ?? new Map<string, number>(),
+        exam.passMarkPercent,
+      );
+      return {
+        sessionId: session.id,
+        student,
+        status: session.status,
+        submittedAt: session.submittedAt,
+        score: result.score,
+        total: result.total,
+        percentage: result.percentage,
+        passed: result.passed,
+      };
+    });
+  }
+
+  // Admin: one student's full result, with question text and options
+  async getResultForAdmin(
+    examId: string,
+    sessionId: string,
+  ): Promise<AdminResultDetail> {
+    // The exam id is part of the lookup, so a session from another exam is a 404
+    const found = await this.sessions.findOne({
+      where: { id: sessionId, examId },
+    });
+    if (!found) throw new NotFoundException('Session not found');
+
+    const session = await this.closeIfOverdue(found);
+    if (session.status === EXAM_SESSION_STATUS.inProgress) {
+      throw new ConflictException('Session is still in progress');
+    }
+
+    const [exam, questionRows, answerRows, user] = await Promise.all([
+      this.exams.findById(examId),
+      this.questions.findManyByIds(session.questionOrder),
+      this.answers.find({ where: { sessionId: session.id } }),
+      this.users.findById(session.userId), // ASSUMED: returns the user or null
+    ]);
+
+    const questionById = new Map(questionRows.map((q) => [q.id, q]));
+    const selected = new Map(
+      answerRows.map((row) => [row.questionId, row.selectedIndex]),
+    );
+    const result = this.gradeSession(
+      session,
+      questionById,
+      selected,
+      exam.passMarkPercent,
+    );
+
+    return {
+      sessionId: session.id,
+      status: session.status,
+      submittedAt: session.submittedAt,
+      student: {
+        id: session.userId,
+        name: user?.name ?? 'Unknown',
+        email: user?.email ?? '',
+      },
+      // ASSUMED: the exam entity has "title"
+      exam: {
+        id: exam.id,
+        title: exam.title,
+        passMarkPercent: exam.passMarkPercent,
+      },
+      score: result.score,
+      total: result.total,
+      percentage: result.percentage,
+      passed: result.passed,
+      // ASSUMED: grade() returns breakdown items with questionId, selectedIndex, correctIndex, isCorrect
+      breakdown: result.breakdown.map((item) => {
+        const q = questionById.get(item.questionId);
+        return {
+          questionId: item.questionId,
+          text: q?.text ?? '',
+          options: q?.options ?? [],
+          selectedIndex: item.selectedIndex,
+          correctIndex: item.correctIndex,
+          isCorrect: item.isCorrect,
+        };
+      }),
+    };
+  }
+
+  private async findOwned(
+    sessionId: string,
+    userId: string,
+  ): Promise<ExamSession> {
+    const session = await this.sessions.findOne({
+      where: { id: sessionId, userId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    return this.closeIfOverdue(session);
+  }
+
+  // A session left open past expiry + grace is closed as "expired".
+  // classifySubmit says "late" exactly when now is past the grace window.
+  private async closeIfOverdue(session: ExamSession): Promise<ExamSession> {
+    const overdue =
+      session.status === EXAM_SESSION_STATUS.inProgress &&
+      !!session.expiresAt &&
+      this.timer.classifySubmit(session.expiresAt) === 'submitted_late';
+    if (!overdue) return session;
+
+    await this.sessions.update(
+      { id: session.id, status: EXAM_SESSION_STATUS.inProgress },
+      { status: EXAM_SESSION_STATUS.expired },
+    );
+    return this.sessions.findOneByOrFail({ id: session.id });
+  }
+
+  private async computeResult(
+    session: ExamSession,
+  ): Promise<ResultResponseDto> {
+    const [exam, questionRows, answerRows] = await Promise.all([
+      this.exams.findById(session.examId),
+      this.questions.findManyByIds(session.questionOrder),
+      this.answers.find({ where: { sessionId: session.id } }),
+    ]);
+
+    const questionById = new Map(questionRows.map((q) => [q.id, q]));
+    const selected = new Map(
+      answerRows.map((row) => [row.questionId, row.selectedIndex]),
+    );
+
+    const result = this.gradeSession(
+      session,
+      questionById,
+      selected,
+      exam.passMarkPercent,
+    );
+
+    return {
+      sessionId: session.id,
+      status: session.status,
+      submittedAt: session.submittedAt,
+      ...result,
+    };
+  }
+
+  // The ONE place that turns a session and its answers into a graded result
+  private gradeSession(
+    session: ExamSession,
+    questionById: ReadonlyMap<string, { id: string; correctIndex: number }>,
+    selected: ReadonlyMap<string, number>,
+    passMarkPercent: number,
+  ) {
+    const graded: GradingQuestion[] = session.questionOrder.flatMap((id) => {
+      const q = questionById.get(id);
+      return q ? [{ id: q.id, correctIndex: q.correctIndex }] : [];
+    });
+    return this.grading.grade(graded, selected, passMarkPercent);
+  }
+
+  private async toResponse(session: ExamSession): Promise<SessionResponseDto> {
+    const [questionList, answerRows] = await Promise.all([
+      this.questions.findForStudent(session.questionOrder),
+      this.answers.find({ where: { sessionId: session.id } }),
+    ]);
+
+    const answers: Record<string, number> = {};
+    for (const row of answerRows) {
+      answers[row.questionId] = row.selectedIndex;
+    }
+
+    return {
+      id: session.id,
+      status: session.status,
+      expiresAt: session.expiresAt ?? this.clock.now(),
+      serverTime: this.clock.now(),
+      remainingSeconds: session.expiresAt
+        ? this.timer.remainingSeconds(session.expiresAt)
+        : 0,
+      questions: questionList,
+      answers,
+    };
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    const e = error as { code?: string; driverError?: { code?: string } };
+    return (e?.driverError?.code ?? e?.code) === UNIQUE_VIOLATION;
+  }
+}
+
+
+
+
+
+Controller>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+

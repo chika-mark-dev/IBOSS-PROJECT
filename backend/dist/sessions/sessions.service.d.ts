@@ -10,6 +10,7 @@ import { SaveAnswerDto } from './dto/save-answer.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
 import { Answer } from './entities/answer.entity';
 import { ExamSession } from './entities/exam-session.entity';
+import { UsersService } from '../users/users.service';
 export declare class SessionsService {
     private readonly sessions;
     private readonly answers;
@@ -19,7 +20,8 @@ export declare class SessionsService {
     private readonly grading;
     private readonly exams;
     private readonly questions;
-    constructor(sessions: Repository<ExamSession>, answers: Repository<Answer>, dataSource: DataSource, clock: CommonService, timer: TimerService, grading: GradingService, exams: ExamsService, questions: QuestionsService);
+    private readonly users;
+    constructor(sessions: Repository<ExamSession>, answers: Repository<Answer>, dataSource: DataSource, clock: CommonService, timer: TimerService, grading: GradingService, exams: ExamsService, questions: QuestionsService, users: UsersService);
     start(userId: string, examId: string): Promise<SessionResponseDto>;
     getForUser(sessionId: string, userId: string): Promise<SessionResponseDto>;
     saveAnswer(sessionId: string, userId: string, questionId: string, dto: SaveAnswerDto): Promise<SaveAnswerResponseDto>;

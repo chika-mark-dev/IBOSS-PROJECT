@@ -24,6 +24,7 @@ const timer_service_1 = require("../timer/timer.service");
 const answer_entity_1 = require("./entities/answer.entity");
 const exam_session_entity_1 = require("./entities/exam-session.entity");
 const shuffle_utils_1 = require("./shuffle.utils");
+const users_service_1 = require("../users/users.service");
 const UNIQUE_VIOLATION = '23505';
 let SessionsService = class SessionsService {
     sessions;
@@ -34,7 +35,8 @@ let SessionsService = class SessionsService {
     grading;
     exams;
     questions;
-    constructor(sessions, answers, dataSource, clock, timer, grading, exams, questions) {
+    users;
+    constructor(sessions, answers, dataSource, clock, timer, grading, exams, questions, users) {
         this.sessions = sessions;
         this.answers = answers;
         this.dataSource = dataSource;
@@ -43,6 +45,7 @@ let SessionsService = class SessionsService {
         this.grading = grading;
         this.exams = exams;
         this.questions = questions;
+        this.users = users;
     }
     async start(userId, examId) {
         const existing = await this.sessions.findOne({ where: { userId, examId } });
@@ -225,6 +228,7 @@ exports.SessionsService = SessionsService = __decorate([
         timer_service_1.TimerService,
         grading_service_1.GradingService,
         exams_service_1.ExamsService,
-        questions_service_1.QuestionsService])
+        questions_service_1.QuestionsService,
+        users_service_1.UsersService])
 ], SessionsService);
 //# sourceMappingURL=sessions.service.js.map

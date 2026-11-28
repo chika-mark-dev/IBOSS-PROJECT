@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { CommonService } from '../common/common.service';
 import { ExamsService } from '../exams/exams.service';
 import { GradingQuestion, GradingService } from '../grading/grading.service';
@@ -21,6 +21,11 @@ import {
   ExamSession,
 } from './entities/exam-session.entity';
 import { shuffle } from './shuffle.utils';
+import { UsersService } from '../users/users.service';
+import {
+  AdminResultDetail,
+  AdminResultListItem,
+} from './dto/admin-results.types';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -37,6 +42,7 @@ export class SessionsService {
     private readonly grading: GradingService,
     private readonly exams: ExamsService,
     private readonly questions: QuestionsService,
+    private readonly users: UsersService,
   ) {}
 
   async start(userId: string, examId: string): Promise<SessionResponseDto> {
